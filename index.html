@@ -1,1106 +1,480 @@
 <!DOCTYPE html>
 <html lang="ru" class="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <!-- PWA мета-теги для iOS (Полноэкранный режим без рамок Safari) -->
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="ZONA iOS">
-    <meta name="theme-color" content="#090a0f">
-    
-    <!-- Иконка для домашнего экрана iPhone -->
-    <link rel="apple-touch-icon" href="https://placehold.co/180x180/2563eb/ffffff?text=Z">
-    
-    <title>ZONA iOS — Онлайн-кинотеатр</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- HLS.js для воспроизведения .m3u8 потоков на всех устройствах -->
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <!-- Шрифт Inter -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    fontFamily: {
-                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-                    },
-                    colors: {
-                        ios: {
-                            bg: '#090a0f',
-                            card: '#141722',
-                            cardHover: '#1c2030',
-                            border: 'rgba(255, 255, 255, 0.08)',
-                            accent: '#3b82f6',
-                            accentPurple: '#8b5cf6'
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-
-    <style>
-        /* Отключение выделения и резинового скролла в стиле нативного iOS приложения */
-        * {
-            -webkit-tap-highlight-color: transparent;
-            box-sizing: border-box;
-        }
-        body {
-            background-color: #090a0f;
-            color: #f8fafc;
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            overflow-x: hidden;
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: calc(5rem + env(safe-area-inset-bottom));
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        input, textarea {
-            user-select: text;
-            -webkit-user-select: text;
-        }
-        /* Скрытие скроллбаров для горизонтальных каруселей */
-        .no-scrollbar::-webkit-scrollbar {
-            display: none;
-        }
-        .no-scrollbar {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-        }
-        /* Эффект матового стекла iOS */
-        .ios-blur {
-            background: rgba(15, 18, 28, 0.78);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
-        }
-        .ios-modal-blur {
-            background: rgba(9, 10, 15, 0.94);
-            backdrop-filter: blur(25px);
-            -webkit-backdrop-filter: blur(25px);
-        }
-        /* Плавная анимация появления */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade {
-            animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-        }
-        /* Безопасный отступ снизу для iPhone с FaceID */
-        .pb-safe {
-            padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Zona Drive">
+  <title>Zona Drive iOS — 5TB Cloud Player</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    :root {
+      --sat: env(safe-area-inset-top, 20px);
+      --sab: env(safe-area-inset-bottom, 20px);
+    }
+    body {
+      background-color: #090b10;
+      color: #f3f4f6;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      padding-top: var(--sat);
+      padding-bottom: calc(74px + var(--sab));
+      user-select: none;
+    }
+    .glass {
+      background: rgba(17, 20, 28, 0.86);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .poster-card {
+      aspect-ratio: 16 / 10;
+    }
+    ::-webkit-scrollbar { display: none; }
+  </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between">
+<body class="min-h-screen flex flex-col">
 
-    <!-- ВЕРХНИЙ ХЕДЕР -->
-    <header class="sticky top-0 z-30 ios-blur border-b border-ios-border px-4 py-3 flex items-center justify-between">
-        <div class="flex items-center space-x-2.5" onclick="switchTab('home')">
-            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-violet-500 flex items-center justify-center shadow-lg shadow-blue-500/25 cursor-pointer">
-                <i class="fa-solid fa-play text-white text-sm ml-0.5"></i>
-            </div>
-            <div>
-                <div class="flex items-center space-x-1.5">
-                    <span class="font-extrabold text-lg tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white via-blue-100 to-blue-400">ZONA</span>
-                    <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">iOS PWA</span>
-                </div>
-                <p class="text-[11px] text-slate-400 leading-none">Автономный медиа-каталог</p>
-            </div>
-        </div>
+  <!-- Верхняя панель -->
+  <header class="sticky top-0 z-30 glass border-b border-white/10 px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center font-black text-lg shadow-lg shadow-blue-500/30">Z</div>
+      <div>
+        <h1 class="font-bold text-base leading-tight tracking-tight">ZONA <span class="text-blue-400">DRIVE</span></h1>
+        <p id="statusBadge" class="text-[11px] text-gray-400">Облачный кинотеатр • iOS</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <button onclick="openLinkModal()" class="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-xs font-semibold flex items-center gap-1.5 active:scale-95 transition">
+        <span>+ По ссылке</span>
+      </button>
+      <button onclick="openSetupModal()" class="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-semibold flex items-center gap-1.5 shadow-lg shadow-blue-600/30 active:scale-95 transition">
+        <span id="authBtnText">Войти в Диск</span>
+      </button>
+    </div>
+  </header>
 
-        <div class="flex items-center space-x-2">
-            <!-- Кнопка добавления своего фильма/потока -->
-            <button onclick="openAddCustomModal()" class="h-9 px-3 rounded-xl bg-ios-card hover:bg-ios-cardHover border border-ios-border flex items-center space-x-1.5 text-xs font-medium text-slate-200 active:scale-95 transition">
-                <i class="fa-solid fa-plus text-blue-400"></i>
-                <span class="hidden sm:inline">Свой поток</span>
-            </button>
-            <!-- Кнопка инструкции по установке на iPhone -->
-            <button onclick="openInstallModal()" class="h-9 px-3 rounded-xl bg-gradient-to-r from-blue-600/20 to-violet-600/20 border border-blue-500/30 flex items-center space-x-1.5 text-xs font-semibold text-blue-300 active:scale-95 transition">
-                <i class="fa-brands fa-apple text-sm"></i>
-                <span>На iPhone</span>
-            </button>
-        </div>
-    </header>
-
-    <!-- ОСНОВНОЙ КОНТЕНТ -->
-    <main class="flex-1 max-w-5xl w-full mx-auto px-4 pt-4 pb-8">
-
-        <!-- ВКЛАДКА 1: ГЛАВНАЯ -->
-        <section id="tab-home" class="space-y-6 animate-fade">
-            
-            <!-- Главный баннер (Hero) -->
-            <div id="hero-banner" class="relative rounded-2xl overflow-hidden border border-ios-border shadow-2xl h-64 sm:h-80 flex items-end p-5 bg-cover bg-center transition-all" style="background-image: linear-gradient(to top, #090a0f 15%, rgba(9,10,15,0.3) 65%, rgba(9,10,15,0.6) 100%), url('https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=1200&q=80');">
-                <div class="w-full space-y-2 z-10">
-                    <div class="flex items-center space-x-2">
-                        <span class="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider rounded-md bg-blue-600 text-white">Премьера 4K</span>
-                        <span class="px-2 py-0.5 text-[10px] font-semibold rounded-md bg-black/60 backdrop-blur-md text-amber-400 border border-amber-400/20"><i class="fa-solid fa-star mr-1"></i>КП 8.6</span>
-                        <span class="text-xs text-slate-300 font-medium">Фантастика • 2024</span>
-                    </div>
-                    <h1 class="text-2xl sm:text-3xl font-extrabold text-white leading-tight">Горизонт Событий: Наследие</h1>
-                    <p class="text-xs sm:text-sm text-slate-300 line-clamp-2 max-w-xl">Экспедиция к границам изученного космоса обнаруживает древний ретранслятор, способный менять ход времени.</p>
-                    <div class="pt-2 flex items-center space-x-2.5">
-                        <button onclick="openMovieModal('m1')" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs sm:text-sm flex items-center space-x-2 shadow-lg shadow-blue-600/30 active:scale-95 transition">
-                            <i class="fa-solid fa-play"></i>
-                            <span>Смотреть онлайн</span>
-                        </button>
-                        <button onclick="toggleFavorite('m1', event)" id="hero-fav-btn" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 backdrop-blur-md text-white font-medium text-xs sm:text-sm flex items-center space-x-1.5 border border-white/10 active:scale-95 transition">
-                            <i class="fa-regular fa-bookmark"></i>
-                            <span>В избранное</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Быстрые категории (Чипсы) -->
-            <div class="flex items-center space-x-2 overflow-x-auto no-scrollbar py-1">
-                <button onclick="filterHomeCategory('all')" data-cat="all" class="home-cat-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-blue-600 text-white shadow-md shadow-blue-600/20 transition">Все сразу</button>
-                <button onclick="filterHomeCategory('movie')" data-cat="movie" class="home-cat-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-ios-card text-slate-300 border border-ios-border hover:bg-ios-cardHover transition">Фильмы</button>
-                <button onclick="filterHomeCategory('series')" data-cat="series" class="home-cat-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-ios-card text-slate-300 border border-ios-border hover:bg-ios-cardHover transition">Сериалы</button>
-                <button onclick="filterHomeCategory('anime')" data-cat="anime" class="home-cat-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-ios-card text-slate-300 border border-ios-border hover:bg-ios-cardHover transition">Аниме</button>
-                <button onclick="openInstantStreamPrompt()" class="px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-violet-600/20 text-violet-300 border border-violet-500/30 flex items-center space-x-1.5 active:scale-95 transition">
-                    <i class="fa-solid fa-bolt text-violet-400"></i>
-                    <span>Прямая ссылка / Балансер</span>
-                </button>
-            </div>
-
-            <!-- Секция: Сейчас в тренде -->
-            <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                    <h2 class="text-base sm:text-lg font-bold flex items-center space-x-2">
-                        <i class="fa-solid fa-fire text-orange-500"></i>
-                        <span>Популярное в Zona</span>
-                    </h2>
-                    <span id="home-count-badge" class="text-xs text-slate-400"></span>
-                </div>
-                <div id="home-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5">
-                    <!-- Карточки рендерятся через JS -->
-                </div>
-            </div>
-        </section>
-
-        <!-- ВКЛАДКА 2: ПОИСК И ФИЛЬТРЫ -->
-        <section id="tab-search" class="space-y-5 hidden animate-fade">
-            <div class="bg-ios-card border border-ios-border rounded-2xl p-4 space-y-3.5">
-                <div class="relative">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                    <input id="search-input" type="text" oninput="applySearchAndFilters()" placeholder="Название фильма, сериала, жанр или год..." class="w-full bg-ios-bg border border-ios-border focus:border-blue-500 rounded-xl pl-10 pr-9 py-2.5 text-sm text-white placeholder-slate-500 outline-none transition">
-                    <button onclick="resetSearch()" class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300">
-                        <i class="fa-solid fa-circle-xmark"></i>
-                    </button>
-                </div>
-
-                <!-- Фильтры -->
-                <div class="grid grid-cols-3 gap-2">
-                    <select id="filter-genre" onchange="applySearchAndFilters()" class="bg-ios-bg border border-ios-border rounded-xl px-2.5 py-2 text-xs text-slate-200 outline-none focus:border-blue-500">
-                        <option value="all">Все жанры</option>
-                        <option value="Фантастика">Фантастика</option>
-                        <option value="Боевик">Боевик</option>
-                        <option value="Триллер">Триллер</option>
-                        <option value="Драма">Драма</option>
-                        <option value="Киберпанк">Киберпанк</option>
-                        <option value="Приключения">Приключения</option>
-                    </select>
-
-                    <select id="filter-year" onchange="applySearchAndFilters()" class="bg-ios-bg border border-ios-border rounded-xl px-2.5 py-2 text-xs text-slate-200 outline-none focus:border-blue-500">
-                        <option value="all">Любой год</option>
-                        <option value="2025">2025</option>
-                        <option value="2024">2024</option>
-                        <option value="2023">2023</option>
-                        <option value="older">До 2023</option>
-                    </select>
-
-                    <select id="filter-rating" onchange="applySearchAndFilters()" class="bg-ios-bg border border-ios-border rounded-xl px-2.5 py-2 text-xs text-slate-200 outline-none focus:border-blue-500">
-                        <option value="0">Рейтинг: Все</option>
-                        <option value="7">От 7.0+</option>
-                        <option value="8">От 8.0+</option>
-                        <option value="8.5">Топ 8.5+</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="space-y-3">
-                <div class="flex items-center justify-between">
-                    <h3 class="text-sm font-semibold text-slate-300">Результаты поиска</h3>
-                    <span id="search-results-count" class="text-xs text-slate-400">0 найдено</span>
-                </div>
-                <div id="search-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5"></div>
-            </div>
-        </section>
-
-        <!-- ВКЛАДКА 3: ТВ-КАНАЛЫ (ПРЯМЫЕ ЭФИРЫ) -->
-        <section id="tab-tv" class="space-y-4 hidden animate-fade">
-            <div class="bg-gradient-to-r from-blue-900/30 to-violet-900/30 border border-blue-500/20 rounded-2xl p-4 flex items-center justify-between">
-                <div class="space-y-1">
-                    <h2 class="text-base font-bold text-white flex items-center space-x-2">
-                        <span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                        <span>Онлайн ТВ и HLS-потоки</span>
-                    </h2>
-                    <p class="text-xs text-slate-300">Нажмите на канал для запуска прямого эфира в плеере или добавьте свой IPTV `.m3u8` поток.</p>
-                </div>
-                <button onclick="openAddCustomModal('tv')" class="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold shrink-0 active:scale-95 transition">
-                    + Канал
-                </button>
-            </div>
-
-            <div id="tv-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <!-- Каналы рендерятся через JS -->
-            </div>
-        </section>
-
-        <!-- ВКЛАДКА 4: ИЗБРАННОЕ -->
-        <section id="tab-favorites" class="space-y-4 hidden animate-fade">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-lg font-bold text-white">Моя коллекция</h2>
-                    <p class="text-xs text-slate-400">Сохраняется в памяти вашего iPhone (localStorage)</p>
-                </div>
-                <button onclick="clearFavorites()" class="text-xs text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/20">
-                    Очистить
-                </button>
-            </div>
-
-            <div id="favorites-empty" class="hidden rounded-2xl border border-ios-border bg-ios-card p-8 text-center space-y-3">
-                <div class="w-12 h-12 rounded-2xl bg-slate-800/80 mx-auto flex items-center justify-center text-slate-400 text-xl">
-                    <i class="fa-regular fa-bookmark"></i>
-                </div>
-                <h3 class="text-sm font-bold text-white">В избранном пока пусто</h3>
-                <p class="text-xs text-slate-400 max-w-xs mx-auto">Добавляйте фильмы, сериалы или собственные потоки с помощью иконки закладки, чтобы быстро открывать их в 1 клик.</p>
-            </div>
-
-            <div id="favorites-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3.5"></div>
-        </section>
-
-    </main>
-
-    <!-- НИЖНИЙ ТАБ-БАР В СТИЛЕ iOS -->
-    <nav class="fixed bottom-0 left-0 right-0 z-30 ios-blur border-t border-ios-border pb-safe">
-        <div class="max-w-md mx-auto grid grid-cols-4 px-2 pt-2">
-            <button onclick="switchTab('home')" id="nav-home" class="nav-btn flex flex-col items-center justify-center py-1 text-blue-400 transition">
-                <i class="fa-solid fa-house text-lg mb-1"></i>
-                <span class="text-[10px] font-semibold">Главная</span>
-            </button>
-            <button onclick="switchTab('search')" id="nav-search" class="nav-btn flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
-                <i class="fa-solid fa-compass text-lg mb-1"></i>
-                <span class="text-[10px] font-semibold">Поиск</span>
-            </button>
-            <button onclick="switchTab('tv')" id="nav-tv" class="nav-btn flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
-                <i class="fa-solid fa-satellite-dish text-lg mb-1"></i>
-                <span class="text-[10px] font-semibold">ТВ-эфир</span>
-            </button>
-            <button onclick="switchTab('favorites')" id="nav-favorites" class="nav-btn relative flex flex-col items-center justify-center py-1 text-slate-400 hover:text-slate-200 transition">
-                <i class="fa-solid fa-bookmark text-lg mb-1"></i>
-                <span class="text-[10px] font-semibold">Избранное</span>
-                <span id="fav-counter" class="hidden absolute top-0.5 right-6 w-4 h-4 rounded-full bg-blue-600 text-[9px] font-bold text-white flex items-center justify-center">0</span>
-            </button>
-        </div>
-    </nav>
-
-    <!-- МОДАЛЬНОЕ ОКНО ФИЛЬМА / ПЛЕЕРА -->
-    <div id="movie-modal" class="fixed inset-0 z-50 hidden ios-modal-blur overflow-y-auto">
-        <div class="max-w-3xl mx-auto min-h-screen flex flex-col pb-10">
-            
-            <!-- Шапка модального окна -->
-            <div class="sticky top-0 z-20 ios-blur px-4 py-3 border-b border-ios-border flex items-center justify-between">
-                <button onclick="closeMovieModal()" class="flex items-center space-x-2 text-blue-400 font-semibold text-sm active:scale-95 transition">
-                    <i class="fa-solid fa-chevron-left"></i>
-                    <span>Назад</span>
-                </button>
-                <span id="modal-header-title" class="text-xs font-bold text-slate-200 truncate max-w-[200px]">Просмотр</span>
-                <button id="modal-fav-btn" onclick="toggleFavoriteFromModal()" class="w-8 h-8 rounded-full bg-ios-card border border-ios-border flex items-center justify-center text-slate-300">
-                    <i class="fa-regular fa-bookmark text-sm"></i>
-                </button>
-            </div>
-
-            <!-- Блок видеоплеера -->
-            <div class="relative w-full bg-black aspect-video border-b border-ios-border overflow-hidden">
-                <!-- HTML5 / HLS Видеоплеер (с playsinline для iOS) -->
-                <video id="main-video-player" class="w-full h-full object-contain" controls playsinline webkit-playsinline preload="metadata"></video>
-                <!-- Внешний Iframe плеер для сторонних балансеров -->
-                <iframe id="main-iframe-player" class="w-full h-full hidden border-0" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
-            </div>
-
-            <!-- Панель управления источником, озвучкой и качеством -->
-            <div class="px-4 py-3 bg-ios-card/90 border-b border-ios-border space-y-3">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                    <!-- Выбор озвучки / плеера -->
-                    <div class="flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
-                        <span class="text-[11px] text-slate-400 mr-1"><i class="fa-solid fa-microphone-lines mr-1 text-blue-400"></i>Озвучка:</span>
-                        <button onclick="switchVoice('Дубляж (RU)')" class="voice-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-600 text-white">Дубляж (RU)</button>
-                        <button onclick="switchVoice('HDRezka')" class="voice-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-ios-bg text-slate-300 border border-ios-border">HDRezka</button>
-                        <button onclick="switchVoice('LostFilm')" class="voice-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-ios-bg text-slate-300 border border-ios-border">LostFilm</button>
-                        <button onclick="switchVoice('Original')" class="voice-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-ios-bg text-slate-300 border border-ios-border">Original</button>
-                    </div>
-
-                    <!-- Выбор качества -->
-                    <div class="flex items-center space-x-1">
-                        <button onclick="switchQuality('720p')" class="quality-btn px-2 py-1 rounded-md text-[11px] font-semibold bg-ios-bg text-slate-400 border border-ios-border">720p</button>
-                        <button onclick="switchQuality('1080p')" class="quality-btn px-2 py-1 rounded-md text-[11px] font-semibold bg-blue-600/20 text-blue-400 border border-blue-500/40">1080p</button>
-                        <button onclick="switchQuality('4K')" class="quality-btn px-2 py-1 rounded-md text-[11px] font-semibold bg-ios-bg text-amber-400 border border-ios-border">4K UHD</button>
-                    </div>
-                </div>
-
-                <!-- Серии (показываются если открыт сериал или аниме) -->
-                <div id="episodes-container" class="hidden pt-1 border-t border-ios-border">
-                    <p class="text-[11px] text-slate-400 mb-2">Сезон 1 — Выберите серию:</p>
-                    <div id="episodes-list" class="flex items-center space-x-2 overflow-x-auto no-scrollbar pb-1"></div>
-                </div>
-
-                <!-- Подключение собственной ссылки / балансера прямо внутри карточки -->
-                <details class="group pt-1 border-t border-ios-border">
-                    <summary class="text-xs text-blue-400 font-medium cursor-pointer flex items-center justify-between py-1 list-none">
-                        <span><i class="fa-solid fa-link mr-1.5"></i>Вставить свой поток (.m3u8 / .mp4 / Iframe-балансер)</span>
-                        <i class="fa-solid fa-chevron-down text-[10px] group-open:rotate-180 transition"></i>
-                    </summary>
-                    <div class="pt-2 flex flex-col sm:flex-row gap-2">
-                        <input id="custom-stream-url" type="url" placeholder="https://.../master.m3u8 или ссылка на веб-плеер" class="flex-1 bg-ios-bg border border-ios-border rounded-xl px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-blue-500">
-                        <div class="flex space-x-1.5">
-                            <button onclick="loadCustomStreamInModal('video')" class="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold whitespace-nowrap">Запустить поток</button>
-                            <button onclick="loadCustomStreamInModal('iframe')" class="px-3 py-2 rounded-xl bg-violet-600/30 border border-violet-500/40 text-violet-200 text-xs font-semibold whitespace-nowrap">Как Iframe</button>
-                        </div>
-                    </div>
-                </details>
-            </div>
-
-            <!-- Описание фильма -->
-            <div class="p-4 space-y-4">
-                <div class="flex items-start space-x-4">
-                    <img id="modal-poster" src="" alt="Poster" class="w-24 sm:w-28 rounded-xl border border-ios-border object-cover shadow-lg shrink-0">
-                    <div class="space-y-1.5">
-                        <div class="flex flex-wrap items-center gap-1.5">
-                            <span id="modal-type-badge" class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 text-[10px] font-bold uppercase">Фильм</span>
-                            <span id="modal-kp" class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 text-[11px] font-bold">КП 8.5</span>
-                            <span id="modal-imdb" class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px] font-semibold">IMDb 8.3</span>
-                        </div>
-                        <h2 id="modal-title" class="text-lg sm:text-xl font-extrabold text-white leading-snug">Название</h2>
-                        <p id="modal-meta" class="text-xs text-slate-400">2024 • Фантастика • 142 мин.</p>
-                    </div>
-                </div>
-
-                <div class="bg-ios-card border border-ios-border rounded-2xl p-3.5 space-y-1.5">
-                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400">Описание сюжета</h4>
-                    <p id="modal-desc" class="text-xs sm:text-sm text-slate-200 leading-relaxed"></p>
-                </div>
-            </div>
-        </div>
+  <!-- Поиск и фильтры -->
+  <div class="px-4 pt-3 pb-2 space-y-2.5">
+    <div class="relative">
+      <input id="searchInput" oninput="renderContent()" type="text" placeholder="Поиск фильмов и сериалов на Диске..."
+        class="w-full bg-white/5 border border-white/10 rounded-2xl py-2.5 pl-10 pr-4 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500">
+      <svg class="w-4 h-4 text-gray-400 absolute left-3.5 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО: ДОБАВИТЬ СВОЙ ФИЛЬМ / ПОТОК В КАТАЛОГ -->
-    <div id="add-custom-modal" class="fixed inset-0 z-50 hidden ios-modal-blur flex items-center justify-center p-4">
-        <div class="bg-ios-card border border-ios-border rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl animate-fade">
-            <div class="flex items-center justify-between">
-                <h3 class="text-base font-bold text-white flex items-center space-x-2">
-                    <i class="fa-solid fa-cloud-arrow-up text-blue-400"></i>
-                    <span>Добавить свой фильм или поток</span>
-                </h3>
-                <button onclick="closeAddCustomModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
+    <div class="flex gap-2 overflow-x-auto pb-1 text-xs font-medium">
+      <button onclick="setFilter('all')" id="flt-all" class="px-3.5 py-1.5 rounded-xl bg-blue-600 text-white shrink-0">Все видео</button>
+      <button onclick="setFilter('drive')" id="flt-drive" class="px-3.5 py-1.5 rounded-xl bg-white/5 text-gray-300 shrink-0">Google Диск (5 ТБ)</button>
+      <button onclick="setFilter('saved')" id="flt-saved" class="px-3.5 py-1.5 rounded-xl bg-white/5 text-gray-300 shrink-0">Мои ссылки</button>
+      <button onclick="setFilter('fav')" id="flt-fav" class="px-3.5 py-1.5 rounded-xl bg-white/5 text-gray-300 shrink-0">★ Избранное</button>
+    </div>
+  </div>
 
-            <p class="text-xs text-slate-400">Добавленная карточка сохранится на вашем iPhone. Вы можете вставить прямую ссылку на `.mp4`, `.m3u8` (HLS) или ссылку на внешний веб-балансер.</p>
+  <!-- Баннер подключения Google Диска -->
+  <div id="driveConnectBanner" class="mx-4 my-2 p-4 rounded-2xl bg-gradient-to-r from-blue-900/40 via-indigo-900/40 to-slate-900 border border-blue-500/30 flex items-center justify-between gap-3">
+    <div class="space-y-1">
+      <div class="text-xs font-bold uppercase tracking-wider text-blue-400">Облако 5 ТБ без подписок</div>
+      <div class="text-sm font-semibold">Подключите свой Google Диск или добавьте фильм ссылкой</div>
+      <div class="text-xs text-gray-400">Автоматическое сканирование всех MP4, MKV, MOV и сериалов</div>
+    </div>
+    <button onclick="handleDriveAuth()" class="shrink-0 px-4 py-2.5 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-bold text-xs shadow-lg shadow-blue-500/30 active:scale-95 transition">
+      Подключить
+    </button>
+  </div>
 
-            <div class="space-y-3">
-                <div>
-                    <label class="text-[11px] text-slate-400 font-semibold block mb-1">Название фильма / канала *</label>
-                    <input id="add-title" type="text" placeholder="Например: Дюна: Часть вторая" class="w-full bg-ios-bg border border-ios-border rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-blue-500">
-                </div>
-
-                <div class="grid grid-cols-2 gap-2.5">
-                    <div>
-                        <label class="text-[11px] text-slate-400 font-semibold block mb-1">Категория</label>
-                        <select id="add-category" class="w-full bg-ios-bg border border-ios-border rounded-xl px-3 py-2 text-xs text-white outline-none">
-                            <option value="movie">Фильм</option>
-                            <option value="series">Сериал</option>
-                            <option value="anime">Аниме</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[11px] text-slate-400 font-semibold block mb-1">Жанр</label>
-                        <input id="add-genre" type="text" value="Фантастика" class="w-full bg-ios-bg border border-ios-border rounded-xl px-3 py-2 text-xs text-white outline-none">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="text-[11px] text-slate-400 font-semibold block mb-1">Ссылка на видео (.m3u8, .mp4) или Iframe *</label>
-                    <input id="add-stream" type="url" placeholder="https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8" class="w-full bg-ios-bg border border-ios-border rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-blue-500">
-                </div>
-
-                <div>
-                    <label class="text-[11px] text-slate-400 font-semibold block mb-1">Тип воспроизведения</label>
-                    <select id="add-stream-type" class="w-full bg-ios-bg border border-ios-border rounded-xl px-3 py-2 text-xs text-white outline-none">
-                        <option value="video">Встроенный iOS плеер (.m3u8 / .mp4)</option>
-                        <option value="iframe">Внешний веб-плеер / балансер (Iframe)</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="flex items-center justify-end space-x-2 pt-2">
-                <button onclick="closeAddCustomModal()" class="px-4 py-2 rounded-xl bg-ios-bg text-slate-300 text-xs font-semibold">Отмена</button>
-                <button onclick="saveCustomMovie()" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-lg shadow-blue-600/30">Сохранить в каталог</button>
-            </div>
-        </div>
+  <!-- Сетка видеофайлов -->
+  <main class="flex-1 px-4 py-2">
+    <div id="loadingIndicator" class="hidden py-12 text-center space-y-3">
+      <div class="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+      <p class="text-xs text-gray-400">Сканируем видеофайлы на вашем Google Диске...</p>
     </div>
 
-    <!-- МОДАЛЬНОЕ ОКНО: ИНСТРУКЦИЯ УСТАНОВКИ НА iPHONE БЕЗ ПК -->
-    <div id="install-modal" class="fixed inset-0 z-50 hidden ios-modal-blur flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-ios-card border border-ios-border rounded-2xl max-w-lg w-full p-5 space-y-4 shadow-2xl my-auto animate-fade">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center space-x-2.5">
-                    <div class="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center text-white">
-                        <i class="fa-brands fa-apple text-lg"></i>
-                    </div>
-                    <h3 class="text-base font-bold text-white">Установка на iPhone навсегда</h3>
-                </div>
-                <button onclick="closeInstallModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
-            </div>
+    <div id="moviesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5"></div>
+  </main>
 
-            <div class="space-y-3 text-xs text-slate-300 leading-relaxed">
-                <div class="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-200">
-                    <strong>Никаких переподписок каждые 7 дней!</strong> Веб-приложение (PWA) работает автономно, открывается во весь экран без адресной строки Safari и работает даже при полностью выключенном ноутбуке.
-                </div>
-
-                <div class="space-y-2">
-                    <h4 class="font-bold text-white text-sm">Шаг 1. Как сделать приложение доступным 24/7 без ПК:</h4>
-                    <p>Сохраните этот файл как <code class="px-1.5 py-0.5 rounded bg-black text-blue-400">index.html</code> на своем Windows-ноутбуке и перетащите его на любой бесплатный облачный хостинг:</p>
-                    <ul class="list-disc pl-5 space-y-1 text-slate-300">
-                        <li><strong>Netlify Drop (app.netlify.com/drop)</strong> — просто перетащите папку с файлом в браузер, и вы за 5 секунд получите постоянную личную ссылку <code class="text-blue-400">https://...netlify.app</code>.</li>
-                        <li><strong>GitHub Pages</strong> или <strong>Vercel</strong> — также абсолютно бесплатны навсегда.</li>
-                    </ul>
-                </div>
-
-                <div class="space-y-2">
-                    <h4 class="font-bold text-white text-sm">Шаг 2. Добавление иконки на экран «Домой» iPhone:</h4>
-                    <ol class="list-decimal pl-5 space-y-1.5 text-slate-300">
-                        <li>Откройте полученную ссылку в браузере <strong>Safari</strong> на вашем iPhone.</li>
-                        <li>Нажмите кнопку <strong>«Поделиться»</strong> <i class="fa-solid fa-arrow-up-from-bracket text-blue-400 mx-1"></i> в нижней панели Safari.</li>
-                        <li>Пролистайте вниз и выберите пункт <strong>«На экран „Домой“»</strong> (Add to Home Screen).</li>
-                        <li>Нажмите <strong>«Добавить»</strong>. На рабочем столе iPhone появится нативная иконка <strong>ZONA iOS</strong>!</li>
-                    </ol>
-                </div>
-            </div>
-
-            <button onclick="closeInstallModal()" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-lg shadow-blue-600/30">
-                Понятно, отлично!
-            </button>
-        </div>
+  <!-- Модальное окно видеоплеера -->
+  <div id="playerModal" class="fixed inset-0 z-50 hidden bg-black/95 flex flex-col justify-between p-4" style="padding-top: var(--sat); padding-bottom: var(--sab);">
+    <div class="flex items-center justify-between gap-2 pb-3 border-b border-white/10">
+      <div class="truncate">
+        <h3 id="playerTitle" class="font-bold text-sm truncate">Воспроизведение</h3>
+        <p id="playerSub" class="text-[11px] text-gray-400">Прямой поток Google Drive</p>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button onclick="switchPlayerMode('preview')" id="modePreviewBtn" class="px-2.5 py-1 rounded-lg bg-blue-600 text-xs font-semibold">Плеер Drive (Все форматы)</button>
+        <button onclick="switchPlayerMode('native')" id="modeNativeBtn" class="px-2.5 py-1 rounded-lg bg-white/10 text-xs font-semibold">HTML5</button>
+        <button onclick="closePlayer()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-lg font-bold">✕</button>
+      </div>
     </div>
 
-    <!-- ВСПЛЫВАЮЩЕЕ УВЕДОМЛЕНИЕ (TOAST ВМЕСТО ALERT) -->
-    <div id="toast" class="fixed top-16 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2.5 rounded-2xl ios-blur border border-blue-500/40 text-xs font-semibold text-white shadow-xl flex items-center space-x-2">
-        <i class="fa-solid fa-circle-check text-blue-400"></i>
-        <span id="toast-msg">Готово</span>
+    <!-- Контейнер плеера -->
+    <div class="flex-1 flex items-center justify-center my-2 relative rounded-2xl overflow-hidden bg-black border border-white/10">
+      <iframe id="driveIframe" class="w-full h-full hidden" allow="autoplay; fullscreen" allowfullscreen></iframe>
+      <video id="nativeVideo" class="w-full max-h-full hidden" controls playsinline></video>
     </div>
 
-    <!-- ЛОГИКА ПРИЛОЖЕНИЯ -->
-    <script>
-        // Набор надежных тестовых потоков (HLS .m3u8 и MP4), которые гарантированно работают в iOS Safari
-        const DEMO_STREAMS = {
-            tearsOfSteel: "https://demo.unified-streaming.com/k8s/features/stable/video/tears-of-steel/tears-of-steel.ism/.m3u8",
-            sintel: "https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8",
-            bigBuckBunny: "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
-            fmp4: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_fmp4/master.m3u8"
-        };
+    <div class="pt-2 flex items-center justify-between text-xs text-gray-400">
+      <span>Совет: если файл MKV или больше 100 МБ — используйте режим «Плеер Drive»</span>
+      <a id="externalDriveLink" href="#" target="_blank" class="text-blue-400 underline">Открыть в оригинале</a>
+    </div>
+  </div>
 
-        // Стартовая база фильмов, сериалов и аниме
-        const DEFAULT_MOVIES = [
-            {
-                id: 'm1',
-                title: 'Горизонт Событий: Наследие',
-                category: 'movie',
-                genre: 'Фантастика',
-                year: '2024',
-                kp: 8.6,
-                imdb: 8.4,
-                duration: '148 мин.',
-                poster: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=600&q=80',
-                desc: 'Экспедиция к границам изученного космоса обнаруживает древний квантовый ретранслятор, способный менять ход времени и открывать кротовые норы в соседние галактики.',
-                streamUrl: DEMO_STREAMS.tearsOfSteel,
-                streamType: 'video'
-            },
-            {
-                id: 'm2',
-                title: 'Киберпанк: Неоновый Токио',
-                category: 'series',
-                genre: 'Киберпанк',
-                year: '2025',
-                kp: 8.9,
-                imdb: 8.7,
-                duration: '1 сезон (8 серий)',
-                poster: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80',
-                desc: 'В мегаполисе будущего хакер-одиночка взламывает нейросеть крупнейшей корпорации и находит цифровой слепок сознания пропавшего архитектора сети.',
-                streamUrl: DEMO_STREAMS.sintel,
-                streamType: 'video',
-                episodes: [
-                    { ep: 1, title: 'Пробуждение протокола', url: DEMO_STREAMS.sintel },
-                    { ep: 2, title: 'Призрак в подсети', url: DEMO_STREAMS.tearsOfSteel },
-                    { ep: 3, title: 'Нулевой сектор', url: DEMO_STREAMS.bigBuckBunny },
-                    { ep: 4, title: 'Сингулярность', url: DEMO_STREAMS.fmp4 }
-                ]
-            },
-            {
-                id: 'm3',
-                title: 'Тайна Северного Фьорда',
-                category: 'movie',
-                genre: 'Триллер',
-                year: '2024',
-                kp: 7.9,
-                imdb: 7.7,
-                duration: '124 мин.',
-                poster: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80',
-                desc: 'На отрезанной снежным штормом полярной станции группа исследователей сталкивается с необъяснимым сигналом, идущим из-под многовекового льда.',
-                streamUrl: DEMO_STREAMS.bigBuckBunny,
-                streamType: 'video'
-            },
-            {
-                id: 'm4',
-                title: 'Клинок Забвения: Хроники',
-                category: 'anime',
-                genre: 'Приключения',
-                year: '2025',
-                kp: 9.1,
-                imdb: 8.9,
-                duration: '1 сезон (12 серий)',
-                poster: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?auto=format&fit=crop&w=600&q=80',
-                desc: 'Молодой мечник отправляется в путешествие через парящие острова, чтобы восстановить разрушенную печать древних стихий.',
-                streamUrl: DEMO_STREAMS.sintel,
-                streamType: 'video',
-                episodes: [
-                    { ep: 1, title: 'Клятва на рассвете', url: DEMO_STREAMS.sintel },
-                    { ep: 2, title: 'Багровый перевал', url: DEMO_STREAMS.tearsOfSteel },
-                    { ep: 3, title: 'Храм ветров', url: DEMO_STREAMS.bigBuckBunny }
-                ]
-            },
-            {
-                id: 'm5',
-                title: 'Скорость Звука: Гран-При',
-                category: 'movie',
-                genre: 'Боевик',
-                year: '2023',
-                kp: 8.1,
-                imdb: 7.9,
-                duration: '131 мин.',
-                poster: 'https://images.unsplash.com/photo-1511919884226-fd3cad34687c?auto=format&fit=crop&w=600&q=80',
-                desc: 'Бывший пилот возвращается в ночные гонки на выживание, чтобы спасти команду своего наставника от поглощения синдикатом.',
-                streamUrl: DEMO_STREAMS.tearsOfSteel,
-                streamType: 'video'
-            },
-            {
-                id: 'm6',
-                title: 'Код Доступа: Призрак',
-                category: 'series',
-                genre: 'Боевик',
-                year: '2024',
-                kp: 8.3,
-                imdb: 8.0,
-                duration: '1 сезон (6 серий)',
-                poster: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=600&q=80',
-                desc: 'Аналитик спецслужб обнаруживает скрытую сеть агентов, управляемую автономным алгоритмом предсказывания кризисов.',
-                streamUrl: DEMO_STREAMS.fmp4,
-                streamType: 'video',
-                episodes: [
-                    { ep: 1, title: 'Точка входа', url: DEMO_STREAMS.fmp4 },
-                    { ep: 2, title: 'Слепая зона', url: DEMO_STREAMS.tearsOfSteel }
-                ]
-            },
-            {
-                id: 'm7',
-                title: 'Последний Океан',
-                category: 'movie',
-                genre: 'Драма',
-                year: '2023',
-                kp: 7.6,
-                imdb: 7.5,
-                duration: '118 мин.',
-                poster: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80',
-                desc: 'Вдохновляющая история кругосветного одиночного плавания человека, бросившего вызов стихии ради спасения редкой морской экосистемы.',
-                streamUrl: DEMO_STREAMS.bigBuckBunny,
-                streamType: 'video'
-            },
-            {
-                id: 'm8',
-                title: 'Академия Небесных Врат',
-                category: 'anime',
-                genre: 'Фантастика',
-                year: '2024',
-                kp: 8.5,
-                imdb: 8.2,
-                duration: '1 сезон (10 серий)',
-                poster: 'https://images.unsplash.com/photo-1563089145-599997674d42?auto=format&fit=crop&w=600&q=80',
-                desc: 'Курсанты орбитальной академии пилотируют биомеханических стражей для защиты Земли от метеоритных роев.',
-                streamUrl: DEMO_STREAMS.tearsOfSteel,
-                streamType: 'video',
-                episodes: [
-                    { ep: 1, title: 'Первый взлет', url: DEMO_STREAMS.tearsOfSteel },
-                    { ep: 2, title: 'Орбитальный рубеж', url: DEMO_STREAMS.sintel }
-                ]
-            }
-        ];
+  <!-- Модальное окно добавления ссылки с Google Диска / Потока -->
+  <div id="linkModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-[#121620] border border-white/15 rounded-3xl p-5 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-base">Добавить фильм с Google Диска</h3>
+        <button onclick="closeLinkModal()" class="text-gray-400 text-lg">✕</button>
+      </div>
+      <p class="text-xs text-gray-400 leading-relaxed">
+        Скопируйте ссылку на любое видео из Google Диска (убедитесь, что доступ открыт «Всем, у кого есть ссылка») или прямую ссылку `.m3u8` / `.mp4`:
+      </p>
+      <div class="space-y-3">
+        <input id="customTitle" type="text" placeholder="Название фильма или сериала" class="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white">
+        <input id="customUrl" type="text" placeholder="https://drive.google.com/file/d/.../view" class="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-sm text-white">
+      </div>
+      <div class="flex gap-2 pt-1">
+        <button onclick="saveCustomVideo(true)" class="flex-1 py-2.5 rounded-xl bg-blue-600 font-bold text-xs text-white">Смотреть сразу</button>
+        <button onclick="saveCustomVideo(false)" class="flex-1 py-2.5 rounded-xl bg-white/10 font-semibold text-xs text-white">Сохранить в каталог</button>
+      </div>
+    </div>
+  </div>
 
-        // ТВ-каналы (HLS потоки)
-        const DEFAULT_TV = [
-            { id: 'tv1', name: 'Zona Sci-Fi HD', category: 'Кино и Фантастика', program: 'Эфир: Горизонт Событий (FullHD)', url: DEMO_STREAMS.tearsOfSteel },
-            { id: 'tv2', name: 'Animation 24/7', category: 'Анимация и 3D', program: 'Эфир: Хроники Синтел (HLS)', url: DEMO_STREAMS.sintel },
-            { id: 'tv3', name: 'Cinema Mix UHD', category: 'Премьеры', program: 'Эфир: Короткометражные хиты', url: DEMO_STREAMS.bigBuckBunny },
-            { id: 'tv4', name: 'Apple Test Stream', category: 'Технический 60fps', program: 'Эфир: Проверка битрейта iOS', url: DEMO_STREAMS.fmp4 }
-        ];
+  <!-- Модальное окно настройки Google Drive API (5 ТБ) -->
+  <div id="setupModal" class="fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-[#121620] border border-white/15 rounded-3xl p-5 space-y-4 max-h-[88vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold text-base">Авто-каталог Google Диска (5 ТБ)</h3>
+        <button onclick="closeSetupModal()" class="text-gray-400 text-lg">✕</button>
+      </div>
 
-        // Состояние приложения
-        let movies = [];
-        let favorites = [];
-        let currentHomeCategory = 'all';
-        let activeMovie = null;
-        let hlsInstance = null;
+      <div class="space-y-2 text-xs text-gray-300 leading-relaxed bg-white/5 p-3.5 rounded-2xl border border-white/10">
+        <p class="font-bold text-blue-400">Как подключить все 5 ТБ автоматически (бесплатно):</p>
+        <ol class="list-decimal list-inside space-y-1.5 text-gray-300">
+          <li>Откройте <b>console.cloud.google.com</b> и создайте проект.</li>
+          <li>Включите <b>Google Drive API</b> в разделе Library.</li>
+          <li>В разделе <b>Credentials</b> создайте <b>OAuth client ID</b> (тип: <i>Web application</i>).</li>
+          <li>В поле <b>Authorized JavaScript origins</b> добавьте адрес вашего сайта:<br>
+            <code class="text-blue-300 select-all">https://aleksejlavrov7272-pixel.github.io</code>
+          </li>
+          <li>Вставьте полученный <b>Client ID</b> ниже:</li>
+        </ol>
+      </div>
 
-        // Инициализация при загрузке
-        function initApp() {
-            const savedCustom = JSON.parse(localStorage.getItem('zona_custom_movies') || '[]');
-            movies = [...savedCustom, ...DEFAULT_MOVIES];
-            favorites = JSON.parse(localStorage.getItem('zona_favorites') || '["m1", "m2"]');
+      <div class="space-y-2">
+        <label class="text-xs text-gray-400 font-medium">Ваш Google OAuth Client ID:</label>
+        <input id="clientIdInput" type="text" placeholder="123456789-xxx.apps.googleusercontent.com"
+          class="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white">
+      </div>
 
-            renderHomeGrid();
-            applySearchAndFilters();
-            renderTvChannels();
-            renderFavorites();
-            updateFavCounter();
-            updateHeroFavButton();
+      <div class="flex gap-2">
+        <button onclick="saveClientIdAndLogin()" class="flex-1 py-2.5 rounded-xl bg-blue-600 font-bold text-xs text-white">Сохранить и войти в Google</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Нижний таб-бар iOS -->
+  <nav class="fixed bottom-0 inset-x-0 z-30 glass border-t border-white/10 px-6 py-2 flex justify-around items-center text-[11px] font-medium" style="padding-bottom: calc(8px + var(--sab));">
+    <button onclick="setFilter('all')" class="flex flex-col items-center gap-1 text-blue-400">
+      <span>🎬</span><span>Каталог</span>
+    </button>
+    <button onclick="handleDriveAuth()" class="flex flex-col items-center gap-1 text-gray-300">
+      <span>☁️</span><span>Диск 5ТБ</span>
+    </button>
+    <button onclick="openLinkModal()" class="flex flex-col items-center gap-1 text-gray-300">
+      <span>➕</span><span>По ссылке</span>
+    </button>
+    <button onclick="setFilter('fav')" class="flex flex-col items-center gap-1 text-gray-300">
+      <span>⭐</span><span>Избранное</span>
+    </button>
+  </nav>
+
+  <script>
+    let accessToken = localStorage.getItem('gd_access_token') || '';
+    let clientId = localStorage.getItem('gd_client_id') || '';
+    let currentFilter = 'all';
+    let activeItem = null;
+
+    const demoCatalog = [
+      {
+        id: 'demo-1',
+        title: 'Big Buck Bunny (Тест 1080p поток)',
+        size: 'MP4 • HD Поток',
+        source: 'saved',
+        streamUrl: 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+        thumb: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600&q=80'
+      },
+      {
+        id: 'demo-2',
+        title: 'Sintel (Тестовый фильм)',
+        size: 'MP4 • FullHD',
+        source: 'saved',
+        streamUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
+        thumb: 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=600&q=80'
+      }
+    ];
+
+    let driveFiles = JSON.parse(localStorage.getItem('gd_cached_files') || '[]');
+    let customVideos = JSON.parse(localStorage.getItem('zona_custom_videos') || '[]');
+    let favorites = JSON.parse(localStorage.getItem('zona_favs') || '[]');
+
+    function extractDriveId(url) {
+      const match1 = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (match1) return match1[1];
+      const match2 = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+      if (match2) return match2[1];
+      return null;
+    }
+
+    function formatSize(bytes) {
+      if (!bytes) return 'Видео с Диска';
+      const gb = bytes / (1024 * 1024 * 1024);
+      if (gb >= 1) return gb.toFixed(2) + ' ГБ';
+      const mb = bytes / (1024 * 1024);
+      return mb.toFixed(0) + ' МБ';
+    }
+
+    function setFilter(flt) {
+      currentFilter = flt;
+      ['all', 'drive', 'saved', 'fav'].forEach(k => {
+        const el = document.getElementById('flt-' + k);
+        if (el) {
+          el.className = (k === flt)
+            ? 'px-3.5 py-1.5 rounded-xl bg-blue-600 text-white shrink-0'
+            : 'px-3.5 py-1.5 rounded-xl bg-white/5 text-gray-300 shrink-0';
         }
+      });
+      renderContent();
+    }
 
-        // Уведомление Toast
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toast-msg').textContent = message;
-            toast.classList.remove('hidden');
-            clearTimeout(window.toastTimer);
-            window.toastTimer = setTimeout(() => {
-                toast.classList.add('hidden');
-            }, 2500);
-        }
+    function toggleFav(id, event) {
+      event.stopPropagation();
+      if (favorites.includes(id)) {
+        favorites = favorites.filter(x => x !== id);
+      } else {
+        favorites.push(id);
+      }
+      localStorage.setItem('zona_favs', JSON.stringify(favorites));
+      renderContent();
+    }
 
-        // Переключение нижних вкладок
-        function switchTab(tabName) {
-            ['home', 'search', 'tv', 'favorites'].forEach(t => {
-                document.getElementById(`tab-${t}`).classList.add('hidden');
-                const btn = document.getElementById(`nav-${t}`);
-                btn.classList.remove('text-blue-400');
-                btn.classList.add('text-slate-400');
-            });
+    function renderContent() {
+      const grid = document.getElementById('moviesGrid');
+      const q = (document.getElementById('searchInput').value || '').toLowerCase();
+      let allItems = [...driveFiles, ...customVideos, ...demoCatalog];
 
-            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
-            const activeBtn = document.getElementById(`nav-${tabName}`);
-            activeBtn.classList.remove('text-slate-400');
-            activeBtn.classList.add('text-blue-400');
+      if (currentFilter === 'drive') allItems = driveFiles;
+      if (currentFilter === 'saved') allItems = [...customVideos, ...demoCatalog];
+      if (currentFilter === 'fav') allItems = allItems.filter(i => favorites.includes(i.id));
 
-            if (tabName === 'favorites') renderFavorites();
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-        }
+      if (q) {
+        allItems = allItems.filter(i => i.title.toLowerCase().includes(q));
+      }
 
-        // Шаблон карточки фильма
-        function createMovieCardHTML(item) {
-            const isFav = favorites.includes(item.id);
-            const badgeText = item.category === 'series' ? 'Сериал' : (item.category === 'anime' ? 'Аниме' : 'Фильм');
-            const badgeColor = item.category === 'series' ? 'bg-violet-600/90' : (item.category === 'anime' ? 'bg-pink-600/90' : 'bg-blue-600/90');
+      if (driveFiles.length > 0) {
+        document.getElementById('driveConnectBanner').classList.add('hidden');
+        document.getElementById('statusBadge').textContent = `В каталоге Диска: ${driveFiles.length} видео`;
+        document.getElementById('authBtnText').textContent = 'Обновить Диск';
+      }
 
-            return `
-                <div onclick="openMovieModal('${item.id}')" class="group relative bg-ios-card border border-ios-border rounded-2xl overflow-hidden shadow-md hover:border-blue-500/40 transition cursor-pointer flex flex-col">
-                    <div class="relative aspect-[2/3] w-full bg-slate-900 overflow-hidden">
-                        <img src="${item.poster}" alt="${item.title}" loading="lazy" onerror="this.src='https://placehold.co/400x600/141722/3b82f6?text=ZONA'" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-                        <div class="absolute inset-0 bg-gradient-to-t from-[#090a0f] via-transparent to-black/30"></div>
-                        
-                        <span class="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase text-white backdrop-blur-md ${badgeColor}">
-                            ${badgeText}
-                        </span>
+      if (allItems.length === 0) {
+        grid.innerHTML = `
+          <div class="col-span-full py-12 text-center text-gray-400 space-y-2">
+            <p class="text-sm font-semibold">В этом разделе пока нет видео</p>
+            <p class="text-xs">Нажмите «+ По ссылке» или подключите свой Google Диск</p>
+          </div>`;
+        return;
+      }
 
-                        <button onclick="toggleFavorite('${item.id}', event)" class="absolute top-2.5 right-2.5 w-7 h-7 rounded-full bg-black/60 backdrop-blur-md border border-white/10 flex items-center justify-center text-xs ${isFav ? 'text-amber-400' : 'text-white'} active:scale-90 transition">
-                            <i class="${isFav ? 'fa-solid' : 'fa-regular'} fa-bookmark"></i>
-                        </button>
-
-                        <div class="absolute bottom-2 left-2.5 right-2.5 flex items-center justify-between text-[11px] font-bold">
-                            <span class="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-400/30 backdrop-blur-md">
-                                <i class="fa-solid fa-star text-[9px] mr-0.5"></i>${item.kp}
-                            </span>
-                            <span class="text-slate-300 drop-shadow">${item.year}</span>
-                        </div>
-                    </div>
-
-                    <div class="p-2.5 flex-1 flex flex-col justify-between">
-                        <h3 class="text-xs sm:text-sm font-bold text-slate-100 line-clamp-1 group-hover:text-blue-400 transition">${item.title}</h3>
-                        <p class="text-[11px] text-slate-400 mt-0.5 truncate">${item.genre} • ${item.duration}</p>
-                    </div>
+      grid.innerHTML = allItems.map(item => {
+        const isFav = favorites.includes(item.id);
+        const badge = item.source === 'drive' ? 'Google Диск' : 'Поток / Ссылка';
+        const thumbUrl = item.thumb || 'https://images.unsplash.com/photo-1518676590629-3dcbd9c5a5c9?w=600&q=80';
+        return `
+          <div onclick='openPlayer(${JSON.stringify(item).replace(/'/g, "&apos;")})'
+               class="group relative rounded-2xl overflow-hidden bg-white/5 border border-white/10 active:scale-[0.99] transition cursor-pointer">
+            <div class="poster-card w-full bg-slate-900 relative overflow-hidden">
+              <img src="${thumbUrl}" class="w-full h-full object-cover opacity-85 group-hover:scale-105 transition duration-300" loading="lazy">
+              <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent"></div>
+              <span class="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-md text-[10px] font-semibold text-blue-300 border border-white/10">
+                ${badge}
+              </span>
+              <button onclick="toggleFav('${item.id}', event)" class="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-black/70 flex items-center justify-center text-sm">
+                ${isFav ? '⭐' : '☆'}
+              </button>
+              <div class="absolute bottom-2.5 left-3 right-3 flex items-end justify-between gap-2">
+                <div>
+                  <h4 class="font-bold text-sm text-white line-clamp-1">${item.title}</h4>
+                  <p class="text-[11px] text-gray-300">${item.size || 'Видеофайл'}</p>
                 </div>
-            `;
+                <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white shadow-lg shrink-0">▶</div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function openPlayer(item) {
+      activeItem = item;
+      document.getElementById('playerModal').classList.remove('hidden');
+      document.getElementById('playerTitle').textContent = item.title;
+      document.getElementById('playerSub').textContent = item.size || 'Воспроизведение';
+
+      if (item.driveId) {
+        document.getElementById('externalDriveLink').href = `https://drive.google.com/file/d/${item.driveId}/view`;
+        switchPlayerMode('preview');
+      } else {
+        document.getElementById('externalDriveLink').href = item.streamUrl || '#';
+        switchPlayerMode('native');
+      }
+    }
+
+    function switchPlayerMode(mode) {
+      if (!activeItem) return;
+      const iframe = document.getElementById('driveIframe');
+      const video = document.getElementById('nativeVideo');
+      const btnPrev = document.getElementById('modePreviewBtn');
+      const btnNat = document.getElementById('modeNativeBtn');
+
+      video.pause();
+
+      if (mode === 'preview' && activeItem.driveId) {
+        btnPrev.className = 'px-2.5 py-1 rounded-lg bg-blue-600 text-xs font-semibold';
+        btnNat.className = 'px-2.5 py-1 rounded-lg bg-white/10 text-xs font-semibold';
+        video.classList.add('hidden');
+        iframe.classList.remove('hidden');
+        iframe.src = `https://drive.google.com/file/d/${activeItem.driveId}/preview`;
+      } else {
+        btnNat.className = 'px-2.5 py-1 rounded-lg bg-blue-600 text-xs font-semibold';
+        btnPrev.className = 'px-2.5 py-1 rounded-lg bg-white/10 text-xs font-semibold';
+        iframe.classList.add('hidden');
+        iframe.src = '';
+        video.classList.remove('hidden');
+
+        if (activeItem.driveId && accessToken) {
+          video.src = `https://www.googleapis.com/drive/v3/files/${activeItem.driveId}?alt=media&access_token=${accessToken}`;
+        } else if (activeItem.driveId) {
+          video.src = `https://drive.google.com/uc?export=download&id=${activeItem.driveId}`;
+        } else {
+          video.src = activeItem.streamUrl;
         }
+        video.play().catch(() => {});
+      }
+    }
 
-        // Фильтрация по чипсам на Главной
-        function filterHomeCategory(cat) {
-            currentHomeCategory = cat;
-            document.querySelectorAll('.home-cat-btn').forEach(btn => {
-                if (btn.dataset.cat === cat) {
-                    btn.className = "home-cat-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-blue-600 text-white shadow-md shadow-blue-600/20 transition";
-                } else {
-                    btn.className = "home-cat-btn px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap bg-ios-card text-slate-300 border border-ios-border hover:bg-ios-cardHover transition";
-                }
-            });
-            renderHomeGrid();
+    function closePlayer() {
+      const iframe = document.getElementById('driveIframe');
+      const video = document.getElementById('nativeVideo');
+      iframe.src = '';
+      video.pause();
+      video.src = '';
+      document.getElementById('playerModal').classList.add('hidden');
+    }
+
+    function openLinkModal() {
+      document.getElementById('linkModal').classList.remove('hidden');
+    }
+    function closeLinkModal() {
+      document.getElementById('linkModal').classList.add('hidden');
+    }
+
+    function saveCustomVideo(playNow) {
+      const titleInput = document.getElementById('customTitle').value.trim();
+      const urlInput = document.getElementById('customUrl').value.trim();
+      if (!urlInput) return;
+
+      const driveId = extractDriveId(urlInput);
+      const newItem = {
+        id: 'custom-' + Date.now(),
+        title: titleInput || (driveId ? 'Фильм с Google Диска' : 'Пользовательский поток'),
+        size: driveId ? 'Google Диск (По ссылке)' : 'Прямой поток',
+        source: driveId ? 'drive' : 'saved',
+        driveId: driveId,
+        streamUrl: urlInput
+      };
+
+      customVideos.unshift(newItem);
+      localStorage.setItem('zona_custom_videos', JSON.stringify(customVideos));
+      document.getElementById('customTitle').value = '';
+      document.getElementById('customUrl').value = '';
+      closeLinkModal();
+      renderContent();
+
+      if (playNow) openPlayer(newItem);
+    }
+
+    function openSetupModal() {
+      document.getElementById('clientIdInput').value = clientId;
+      document.getElementById('setupModal').classList.remove('hidden');
+    }
+    function closeSetupModal() {
+      document.getElementById('setupModal').classList.add('hidden');
+    }
+
+    function saveClientIdAndLogin() {
+      const val = document.getElementById('clientIdInput').value.trim();
+      if (!val) return;
+      clientId = val;
+      localStorage.setItem('gd_client_id', clientId);
+      closeSetupModal();
+      handleDriveAuth();
+    }
+
+    function handleDriveAuth() {
+      if (!clientId) {
+        openSetupModal();
+        return;
+      }
+      if (!window.google || !window.google.accounts) {
+        alert('Библиотека авторизации Google загружается, попробуйте через пару секунд.');
+        return;
+      }
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/drive.readonly',
+        callback: (resp) => {
+          if (resp && resp.access_token) {
+            accessToken = resp.access_token;
+            localStorage.setItem('gd_access_token', accessToken);
+            fetchDriveVideos();
+          }
         }
+      });
+      tokenClient.requestAccessToken();
+    }
 
-        // Отрисовка сетки на Главной
-        function renderHomeGrid() {
-            const filtered = currentHomeCategory === 'all'
-                ? movies
-                : movies.filter(m => m.category === currentHomeCategory);
-
-            document.getElementById('home-count-badge').textContent = `${filtered.length} тайтлов`;
-            document.getElementById('home-grid').innerHTML = filtered.map(createMovieCardHTML).join('');
+    async function fetchDriveVideos() {
+      document.getElementById('loadingIndicator').classList.remove('hidden');
+      try {
+        const query = encodeURIComponent("mimeType contains 'video/' and trashed = false");
+        const fields = encodeURIComponent("files(id,name,size,thumbnailLink,mimeType)");
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&pageSize=100&fields=${fields}&orderBy=modifiedTime desc`, {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const data = await res.json();
+        if (data.files) {
+          driveFiles = data.files.map(f => ({
+            id: 'gd-' + f.id,
+            driveId: f.id,
+            title: f.name,
+            size: formatSize(f.size),
+            source: 'drive',
+            thumb: f.thumbnailLink ? f.thumbnailLink.replace('=s220', '=s800') : ''
+          }));
+          localStorage.setItem('gd_cached_files', JSON.stringify(driveFiles));
+          renderContent();
         }
+      } catch (e) {
+        alert('Не удалось загрузить список файлов. Проверьте подключение.');
+      } finally {
+        document.getElementById('loadingIndicator').classList.add('hidden');
+      }
+    }
 
-        // Поиск и фильтрация во вкладке "Поиск"
-        function applySearchAndFilters() {
-            const q = document.getElementById('search-input').value.trim().toLowerCase();
-            const genre = document.getElementById('filter-genre').value;
-            const year = document.getElementById('filter-year').value;
-            const minRating = parseFloat(document.getElementById('filter-rating').value);
-
-            const results = movies.filter(m => {
-                const matchQuery = !q || m.title.toLowerCase().includes(q) || m.genre.toLowerCase().includes(q) || m.year.includes(q);
-                const matchGenre = genre === 'all' || m.genre.toLowerCase() === genre.toLowerCase();
-                const matchYear = year === 'all' || (year === 'older' ? parseInt(m.year) < 2023 : m.year === year);
-                const matchRating = m.kp >= minRating;
-                return matchQuery && matchGenre && matchYear && matchRating;
-            });
-
-            document.getElementById('search-results-count').textContent = `${results.length} найдено`;
-            document.getElementById('search-grid').innerHTML = results.map(createMovieCardHTML).join('');
-        }
-
-        function resetSearch() {
-            document.getElementById('search-input').value = '';
-            document.getElementById('filter-genre').value = 'all';
-            document.getElementById('filter-year').value = 'all';
-            document.getElementById('filter-rating').value = '0';
-            applySearchAndFilters();
-        }
-
-        // Отрисовка ТВ-каналов
-        function renderTvChannels() {
-            const container = document.getElementById('tv-list');
-            container.innerHTML = DEFAULT_TV.map(ch => `
-                <div onclick="playTvChannel('${ch.id}')" class="bg-ios-card hover:bg-ios-cardHover border border-ios-border rounded-2xl p-3.5 flex items-center justify-between cursor-pointer active:scale-[0.99] transition">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-600/30 to-violet-600/30 border border-blue-500/30 flex items-center justify-center text-blue-400 font-extrabold text-sm shrink-0">
-                            TV
-                        </div>
-                        <div>
-                            <div class="flex items-center space-x-2">
-                                <h4 class="text-sm font-bold text-white">${ch.name}</h4>
-                                <span class="px-1.5 py-0.5 text-[9px] font-bold uppercase rounded bg-red-500/20 text-red-400 border border-red-500/30">LIVE</span>
-                            </div>
-                            <p class="text-xs text-slate-400 mt-0.5">${ch.program}</p>
-                        </div>
-                    </div>
-                    <div class="w-9 h-9 rounded-full bg-blue-600/20 text-blue-400 flex items-center justify-center">
-                        <i class="fa-solid fa-play text-xs"></i>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        function playTvChannel(tvId) {
-            const ch = DEFAULT_TV.find(t => t.id === tvId);
-            if (!ch) return;
-            const virtualMovie = {
-                id: ch.id,
-                title: ch.name,
-                category: 'movie',
-                genre: ch.category,
-                year: 'LIVE',
-                kp: 9.0,
-                imdb: 9.0,
-                duration: 'Прямой эфир',
-                poster: 'https://placehold.co/400x600/1e293b/38bdf8?text=LIVE+TV',
-                desc: `Прямая трансляция телеканала ${ch.name}. Текущая передача: ${ch.program}.`,
-                streamUrl: ch.url,
-                streamType: 'video'
-            };
-            openMovieModalWithObject(virtualMovie);
-        }
-
-        // Избранное (localStorage)
-        function toggleFavorite(movieId, event) {
-            if (event) event.stopPropagation();
-            const idx = favorites.indexOf(movieId);
-            if (idx > -1) {
-                favorites.splice(idx, 1);
-                showToast('Удалено из избранного');
-            } else {
-                favorites.push(movieId);
-                showToast('Добавлено в избранное');
-            }
-            localStorage.setItem('zona_favorites', JSON.stringify(favorites));
-            renderHomeGrid();
-            applySearchAndFilters();
-            renderFavorites();
-            updateFavCounter();
-            updateHeroFavButton();
-        }
-
-        function updateHeroFavButton() {
-            const btn = document.getElementById('hero-fav-btn');
-            if (!btn) return;
-            const isFav = favorites.includes('m1');
-            btn.innerHTML = isFav
-                ? '<i class="fa-solid fa-bookmark text-amber-400"></i><span>В избранном</span>'
-                : '<i class="fa-regular fa-bookmark"></i><span>В избранное</span>';
-        }
-
-        function updateFavCounter() {
-            const badge = document.getElementById('fav-counter');
-            if (favorites.length > 0) {
-                badge.textContent = favorites.length;
-                badge.classList.remove('hidden');
-            } else {
-                badge.classList.add('hidden');
-            }
-        }
-
-        function renderFavorites() {
-            const favMovies = movies.filter(m => favorites.includes(m.id));
-            const emptyBlock = document.getElementById('favorites-empty');
-            const grid = document.getElementById('favorites-grid');
-
-            if (favMovies.length === 0) {
-                emptyBlock.classList.remove('hidden');
-                grid.innerHTML = '';
-            } else {
-                emptyBlock.classList.add('hidden');
-                grid.innerHTML = favMovies.map(createMovieCardHTML).join('');
-            }
-        }
-
-        function clearFavorites() {
-            favorites = [];
-            localStorage.setItem('zona_favorites', JSON.stringify(favorites));
-            renderFavorites();
-            renderHomeGrid();
-            updateFavCounter();
-            updateHeroFavButton();
-            showToast('Список избранного очищен');
-        }
-
-        // Модальное окно фильма и видеоплеер
-        function openMovieModal(movieId) {
-            const item = movies.find(m => m.id === movieId);
-            if (!item) return;
-            openMovieModalWithObject(item);
-        }
-
-        function openMovieModalWithObject(item) {
-            activeMovie = item;
-            document.getElementById('modal-header-title').textContent = item.title;
-            document.getElementById('modal-title').textContent = item.title;
-            document.getElementById('modal-poster').src = item.poster;
-            document.getElementById('modal-kp').textContent = `КП ${item.kp}`;
-            document.getElementById('modal-imdb').textContent = `IMDb ${item.imdb}`;
-            document.getElementById('modal-meta').textContent = `${item.year} • ${item.genre} • ${item.duration}`;
-            document.getElementById('modal-desc').textContent = item.desc;
-            document.getElementById('custom-stream-url').value = item.streamUrl || '';
-
-            // Серии для сериалов
-            const epContainer = document.getElementById('episodes-container');
-            const epList = document.getElementById('episodes-list');
-            if (item.episodes && item.episodes.length > 0) {
-                epContainer.classList.remove('hidden');
-                epList.innerHTML = item.episodes.map((ep, index) => `
-                    <button onclick="selectEpisode(${index})" class="ep-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap ${index === 0 ? 'bg-blue-600 text-white' : 'bg-ios-bg text-slate-300 border border-ios-border'}">
-                        ${ep.ep} серия: ${ep.title}
-                    </button>
-                `).join('');
-            } else {
-                epContainer.classList.add('hidden');
-            }
-
-            updateModalFavIcon();
-            document.getElementById('movie-modal').classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-
-            loadStream(item.streamUrl, item.streamType || 'video');
-        }
-
-        function selectEpisode(index) {
-            if (!activeMovie || !activeMovie.episodes) return;
-            const ep = activeMovie.episodes[index];
-            document.querySelectorAll('.ep-btn').forEach((btn, idx) => {
-                btn.className = idx === index
-                    ? "ep-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-blue-600 text-white"
-                    : "ep-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap bg-ios-bg text-slate-300 border border-ios-border";
-            });
-            loadStream(ep.url, 'video');
-            showToast(`Включена ${ep.ep} серия`);
-        }
-
-        // Загрузка видеопотока (HLS .m3u8, MP4 или Iframe балансер)
-        function loadStream(url, type = 'video') {
-            const videoEl = document.getElementById('main-video-player');
-            const iframeEl = document.getElementById('main-iframe-player');
-
-            if (hlsInstance) {
-                hlsInstance.destroy();
-                hlsInstance = null;
-            }
-
-            if (type === 'iframe') {
-                videoEl.pause();
-                videoEl.classList.add('hidden');
-                iframeEl.classList.remove('hidden');
-                iframeEl.src = url;
-                return;
-            }
-
-            iframeEl.src = '';
-            iframeEl.classList.add('hidden');
-            videoEl.classList.remove('hidden');
-
-            // Нативная поддержка HLS в Safari на iPhone или через HLS.js
-            if (url.includes('.m3u8')) {
-                if (videoEl.canPlayType('application/vnd.apple.mpegurl')) {
-                    videoEl.src = url;
-                } else if (window.Hls && Hls.isSupported()) {
-                    hlsInstance = new Hls();
-                    hlsInstance.loadSource(url);
-                    hlsInstance.attachMedia(videoEl);
-                }
-            } else {
-                videoEl.src = url;
-            }
-        }
-
-        function loadCustomStreamInModal(type) {
-            const url = document.getElementById('custom-stream-url').value.trim();
-            if (!url) {
-                showToast('Введите ссылку на поток или плеер');
-                return;
-            }
-            loadStream(url, type);
-            showToast(type === 'iframe' ? 'Внешний балансер подключен' : 'Прямой поток запущен');
-        }
-
-        function closeMovieModal() {
-            const videoEl = document.getElementById('main-video-player');
-            const iframeEl = document.getElementById('main-iframe-player');
-            videoEl.pause();
-            videoEl.src = '';
-            iframeEl.src = '';
-            if (hlsInstance) {
-                hlsInstance.destroy();
-                hlsInstance = null;
-            }
-            document.getElementById('movie-modal').classList.add('hidden');
-            document.body.style.overflow = '';
-        }
-
-        function toggleFavoriteFromModal() {
-            if (!activeMovie) return;
-            toggleFavorite(activeMovie.id);
-            updateModalFavIcon();
-        }
-
-        function updateModalFavIcon() {
-            if (!activeMovie) return;
-            const isFav = favorites.includes(activeMovie.id);
-            const btn = document.getElementById('modal-fav-btn');
-            btn.innerHTML = `<i class="${isFav ? 'fa-solid text-amber-400' : 'fa-regular text-slate-300'} fa-bookmark text-sm"></i>`;
-        }
-
-        function switchVoice(voiceName) {
-            document.querySelectorAll('.voice-btn').forEach(btn => {
-                if (btn.textContent === voiceName) {
-                    btn.className = "voice-btn px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-600 text-white";
-                } else {
-                    btn.className = "voice-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-ios-bg text-slate-300 border border-ios-border";
-                }
-            });
-            showToast(`Озвучка: ${voiceName}`);
-        }
-
-        function switchQuality(q) {
-            showToast(`Качество потока: ${q}`);
-        }
-
-        // Быстрый запуск прямой ссылки с главной
-        function openInstantStreamPrompt() {
-            openMovieModal('m1');
-            const detailsEl = document.querySelector('#movie-modal details');
-            if (detailsEl) detailsEl.open = true;
-            document.getElementById('custom-stream-url').focus();
-        }
-
-        // Модальное окно добавления своего фильма
-        function openAddCustomModal() {
-            document.getElementById('add-custom-modal').classList.remove('hidden');
-        }
-
-        function closeAddCustomModal() {
-            document.getElementById('add-custom-modal').classList.add('hidden');
-        }
-
-        function saveCustomMovie() {
-            const title = document.getElementById('add-title').value.trim();
-            const category = document.getElementById('add-category').value;
-            const genre = document.getElementById('add-genre').value.trim() || 'Кино';
-            const streamUrl = document.getElementById('add-stream').value.trim() || DEMO_STREAMS.tearsOfSteel;
-            const streamType = document.getElementById('add-stream-type').value;
-
-            if (!title) {
-                showToast('Укажите название фильма или канала');
-                return;
-            }
-
-            const newMovie = {
-                id: 'custom_' + Date.now(),
-                title,
-                category,
-                genre,
-                year: '2025',
-                kp: 8.5,
-                imdb: 8.2,
-                duration: streamType === 'iframe' ? 'Веб-балансер' : 'Свой поток',
-                poster: `https://placehold.co/400x600/1e293b/60a5fa?text=${encodeURIComponent(title.slice(0, 14))}`,
-                desc: 'Пользовательский источник, сохраненный локально на вашем iPhone.',
-                streamUrl,
-                streamType
-            };
-
-            const savedCustom = JSON.parse(localStorage.getItem('zona_custom_movies') || '[]');
-            savedCustom.unshift(newMovie);
-            localStorage.setItem('zona_custom_movies', JSON.stringify(savedCustom));
-
-            movies.unshift(newMovie);
-            favorites.unshift(newMovie.id);
-            localStorage.setItem('zona_favorites', JSON.stringify(favorites));
-
-            renderHomeGrid();
-            applySearchAndFilters();
-            updateFavCounter();
-            closeAddCustomModal();
-            showToast('Добавлено в каталог и Избранное!');
-        }
-
-        // Модальное окно инструкции для iPhone
-        function openInstallModal() {
-            document.getElementById('install-modal').classList.remove('hidden');
-        }
-
-        function closeInstallModal() {
-            document.getElementById('install-modal').classList.add('hidden');
-        }
-
-        window.onload = initApp;
-    </script>
+    renderContent();
+  </script>
 </body>
 </html>
